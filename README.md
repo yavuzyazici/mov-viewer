@@ -19,7 +19,16 @@ and Apple ProRes.
 - **Precise playback tools:** frame-by-frame stepping, 0.25×–2× speed, loop, and PNG frame snapshots.
 - **Folder playlist:** jump to the previous or next video in the same folder.
 - **Keyboard first:** Space, J/K/L, arrow keys, F for fullscreen. Press `?` in the app for the full list.
+- **English and Turkish interface**, picked from your Windows language.
 - **Light:** built with Tauri (Rust) instead of Electron; the installer is about 42 MB including FFmpeg.
+
+## Screenshots
+
+| Start screen with recent files | A ProRes MOV converting while it plays |
+| --- | --- |
+| ![Atak Viewer start screen with recent MOV files and thumbnails](docs/atak-viewer-start-screen.jpg) | ![Atak Viewer playing a ProRes 4:2:2 10-bit MOV file while converting it to H.264](docs/atak-viewer-prores-hevc-conversion.jpg) |
+
+![Atak Viewer keyboard shortcuts for MOV playback](docs/atak-viewer-keyboard-shortcuts.jpg)
 
 ## How to open MOV files on Windows
 
@@ -59,6 +68,13 @@ Into the app's cache folder, capped at 4 GB; the oldest copies are removed first
 
 **Can it replace QuickTime Player on Windows?**
 For watching `.mov` files, yes; it also plays the HEVC and ProRes files QuickTime for Windows never supported.
+
+**Is the interface in English?**
+Yes. Atak Viewer is in English, or in Turkish when Windows is set to Turkish.
+
+**Windows shows a SmartScreen warning when I run the installer. Is it safe?**
+The installer isn't code-signed yet, so Windows doesn't recognize the publisher. Click **More info → Run anyway**.
+The source code is in this repository, and the installer is built from it.
 
 ## Build from source
 
@@ -117,6 +133,9 @@ fark eder ve görüntüyü FFmpeg ile çözer.
 - Kaldığınız yerden devam, son karenin küçük resmiyle son açılanlar listesi.
 - Kare kare ilerleme, 0,25×–2× hız, döngü ve kareyi PNG olarak kaydetme.
 - Klasördeki önceki / sonraki video; uygulamada `?` ile tüm klavye kısayolları.
+- Türkçe ve İngilizce arayüz, Windows diline göre seçilir.
+
+Kurulum dosyası henüz kod imzalı olmadığından Windows SmartScreen uyarı gösterebilir: **Ek bilgi → Yine de çalıştır**.
 
 ### Sponsor
 
