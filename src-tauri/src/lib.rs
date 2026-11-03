@@ -1,3 +1,5 @@
+mod convert;
+
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -164,10 +166,13 @@ pub fn run() {
             startup_file: Mutex::new(file_from_args(&args)),
             ..Default::default()
         })
+        .manage(convert::Converter::default())
         .invoke_handler(tauri::generate_handler![
             open_video,
             take_startup_file,
-            save_snapshot
+            save_snapshot,
+            convert::make_compatible,
+            convert::cancel_conversion
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

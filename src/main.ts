@@ -1,4 +1,4 @@
-import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { Channel, convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -25,6 +25,14 @@ interface Source {
   modified: number | null;
   /** Only set for files opened from disk through Tauri. */
   file?: VideoFile;
+  /** Playing ffmpeg's H.264 copy instead of the original file. */
+  compat?: boolean;
+}
+
+/** Sent by `make_compatible` while ffmpeg runs. */
+interface ConvertProgress {
+  ratio: number | null;
+  remaining: number | null;
 }
 
 const isTauri = "__TAURI_INTERNALS__" in window;
@@ -86,6 +94,7 @@ const prevBtn = $<HTMLButtonElement>("prev-btn");
 const nextBtn = $<HTMLButtonElement>("next-btn");
 const titleEl = $("title");
 const errorEl = $("error");
+const convertEl = $("convert");
 const helpEl = $("help");
 const toasts = $("toasts");
 const fileInput = $<HTMLInputElement>("file-input");
@@ -147,6 +156,7 @@ function openBlob(file: File) {
 
 function load(source: Source) {
   saveProgress();
+  stopConverting();
   if (state.source?.url.startsWith("blob:")) URL.revokeObjectURL(state.source.url);
 
   state.source = source;
@@ -179,6 +189,7 @@ function load(source: Source) {
 
 function closeVideo() {
   saveProgress();
+  stopConverting();
   video.pause();
   video.removeAttribute("src");
   video.load();
@@ -217,10 +228,63 @@ function openSibling(step: 1 | -1) {
   if (target) openPath(target);
 }
 
+/* ---------- Converting unsupported codecs ---------- */
+
+const isConverting = () => app.classList.contains("is-converting");
+const canConvert = () => isTauri && !!state.source?.file && !state.source.compat;
+
+/** Swaps the unplayable original for ffmpeg's cached H.264 copy; progress, siblings and resume stay on the original. */
+async function convert() {
+  const source = state.source!;
+  app.classList.add("is-converting");
+  app.classList.remove("is-loading", "is-audio-only", "has-error");
+  errorEl.hidden = true;
+  video.pause();
+  video.removeAttribute("src");
+  video.load();
+  renderConvert({ ratio: null, remaining: null });
+  convertEl.hidden = false;
+
+  const onProgress = new Channel<ConvertProgress>();
+  onProgress.onmessage = (p) => state.source === source && renderConvert(p);
+  try {
+    const path = await invoke<string>("make_compatible", { path: source.file!.path, onProgress });
+    if (state.source !== source) return;
+    stopConverting();
+    load({ ...source, url: convertFileSrc(path), compat: true });
+  } catch (err) {
+    if (state.source !== source) return;
+    stopConverting();
+    if (err === "cancelled") closeVideo();
+    else showErrorCard("Video oynatılabilir hale getirilemedi.", String(err));
+  }
+}
+
+function stopConverting() {
+  if (!isConverting()) return;
+  invoke("cancel_conversion");
+  app.classList.remove("is-converting");
+  convertEl.hidden = true;
+}
+
+function renderConvert({ ratio, remaining }: ConvertProgress) {
+  convertEl.classList.toggle("is-indeterminate", ratio === null);
+  convertEl.style.setProperty("--r", String(ratio ?? 0));
+  $("convert-pct").textContent = ratio === null ? "" : `%${Math.round(ratio * 100)}`;
+  $("convert-meta").textContent =
+    remaining === null
+      ? "Başlatılıyor…"
+      : remaining < 1
+        ? "Bitiyor…"
+        : remaining < 60
+          ? `Yaklaşık ${Math.ceil(remaining)} sn kaldı`
+          : `Yaklaşık ${Math.ceil(remaining / 60)} dk kaldı`;
+}
+
 /* ---------- Playback ---------- */
 
 function togglePlay() {
-  if (!state.source || app.classList.contains("has-error")) return;
+  if (!state.source || app.classList.contains("has-error") || isConverting()) return;
   const willPlay = video.paused || video.ended;
   flash(willPlay ? "i-play" : "i-pause");
   if (willPlay) video.play().catch(() => {});
@@ -356,7 +420,8 @@ function captureThumb(): string | undefined {
 
 function saveProgress() {
   const file = state.source?.file;
-  if (!file || !video.duration) return;
+  // While converting, the element holds the audio-only original; its position must not overwrite the saved one.
+  if (!file || !video.duration || isConverting()) return;
   const thumb = captureThumb();
   recent.update(file.path, {
     pos: video.currentTime,
@@ -450,6 +515,7 @@ function renderInfo() {
     rows.push(["Çözünürlük", `${video.videoWidth} × ${video.videoHeight}`]);
     rows.push(["En-boy oranı", aspectLabel(video.videoWidth, video.videoHeight)]);
   }
+  if (s.compat) rows.push(["Oynatma", "Uyumlu kopya (H.264), orijinal kodek bu sistemde çözülemiyor"]);
   rows.push(["Boyut", formatBytes(s.size)]);
   if (video.duration && s.size) {
     const mbps = (s.size * 8) / video.duration / 1e6;
@@ -489,17 +555,28 @@ function showError() {
   // Chromium reports "can't parse the container" and "can't decode the codec" with the same code.
   const damaged = /DEMUXER_ERROR_(COULD_NOT_OPEN|COULD_NOT_PARSE)/.test(err?.message ?? "");
   const unsupported = err?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED || err?.code === MediaError.MEDIA_ERR_DECODE;
+  if (unsupported && !damaged && canConvert()) {
+    convert();
+    return;
+  }
   const hevcHint = navigator.userAgent.includes("Windows")
     ? " iPhone ile çekilen (HEVC) videolar için Microsoft Store'dan “HEVC Video Uzantıları”nı kurup tekrar deneyin."
     : "";
-  $("error-text").textContent = damaged
-    ? "Dosya bozuk görünüyor ya da geçerli bir video dosyası değil."
-    : unsupported
-      ? `Bu dosyanın video biçimi (kodek) bu sistemde açılamıyor.${hevcHint} ProRes kodlu videolar desteklenmez.`
-      : err?.code === MediaError.MEDIA_ERR_NETWORK
-      ? "Dosya okunurken bir sorun oluştu. Dosyanın taşınmadığından veya silinmediğinden emin olun."
-      : "Video yüklenirken beklenmeyen bir hata oluştu.";
-  $("error-detail").textContent = err?.message ?? "";
+  showErrorCard(
+    damaged
+      ? "Dosya bozuk görünüyor ya da geçerli bir video dosyası değil."
+      : unsupported
+        ? `Bu dosyanın video biçimi (kodek) bu sistemde açılamıyor.${hevcHint}`
+        : err?.code === MediaError.MEDIA_ERR_NETWORK
+          ? "Dosya okunurken bir sorun oluştu. Dosyanın taşınmadığından veya silinmediğinden emin olun."
+          : "Video yüklenirken beklenmeyen bir hata oluştu.",
+    err?.message ?? "",
+  );
+}
+
+function showErrorCard(text: string, detail: string) {
+  $("error-text").textContent = text;
+  $("error-detail").textContent = detail;
   errorEl.hidden = false;
   app.classList.add("has-error");
   app.classList.remove("is-loading");
@@ -673,6 +750,11 @@ seek.addEventListener("lostpointercapture", endScrub);
 
 video.addEventListener("loadedmetadata", () => {
   const audioOnly = video.videoWidth === 0;
+  // The webview found a video track it can't decode (e.g. HEVC 4:2:2) and kept only the sound.
+  if (audioOnly && canConvert()) {
+    convert();
+    return;
+  }
   app.classList.toggle("is-audio-only", audioOnly);
   if (audioOnly) toast("Görüntü çözülemedi, yalnızca ses oynatılıyor.", { tone: "error", ms: 7000 });
 
@@ -769,6 +851,7 @@ on("open-btn", pickFile);
 on("open-btn-2", pickFile);
 on("error-open", pickFile);
 on("error-home", closeVideo);
+on("convert-cancel", closeVideo);
 on("home-btn", closeVideo);
 on("help-btn", () => toggleHelp(true));
 on("help-close", () => toggleHelp(false));

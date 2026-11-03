@@ -15,8 +15,12 @@
 
 ```bash
 npm install
+npm run fetch-ffmpeg
 npm run tauri dev
 ```
+
+`fetch-ffmpeg`, uygulamaya gömülen ffmpeg'i (BtbN LGPL derlemesi, sabit sürüm, SHA-256 doğrulamalı)
+`src-tauri/binaries/` altına indirir. Bu klasör git'e girmez.
 
 Kurulum dosyası (`src-tauri/target/release/bundle/nsis/`):
 
@@ -26,5 +30,8 @@ npm run tauri build
 
 ## Kodek desteği
 
-Videolar sistemin tarayıcı motoruyla (Windows'ta WebView2) çözülür. H.264 sorunsuz oynar; iPhone'un HEVC videoları için Windows'ta
-"HEVC Video Uzantıları" gerekir. ProRes desteklenmez.
+Videolar önce sistemin tarayıcı motoruyla (Windows'ta WebView2) oynatılır. Motor görüntüyü çözemezse (ör. kameraların
+HEVC 4:2:2 10-bit, ProRes) uygulama ffmpeg ile H.264 bir kopya hazırlar, ilerlemeyi gösterir ve onu oynatır. Kopya
+önbellekte tutulur (en fazla 4 GB, en eskiler silinir); aynı dosya bir daha açıldığında beklemez.
+
+ffmpeg LGPL lisanslıdır; kaynak kodu: <https://ffmpeg.org> ve <https://github.com/BtbN/FFmpeg-Builds>.
