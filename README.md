@@ -1,6 +1,6 @@
 # Atak Viewer: Free MOV Viewer for Windows
 
-**Atak Viewer** is a free **MOV viewer** and player for Windows. Double-click a `.mov` file and it plays, including
+**Atak Viewer** is a free, open-source **MOV viewer** and player for Windows. Double-click a `.mov` file and it plays, including
 the MOV files Windows' own apps can't open: iPhone HEVC (H.265), 10-bit 4:2:2 footage from cameras such as Fujifilm,
 and Apple ProRes.
 
@@ -58,7 +58,7 @@ Atak Viewer also opens `.mp4`, `.m4v` and `.webm` files.
 ## FAQ
 
 **Is Atak Viewer free?**
-Yes.
+Yes. It's free and open source under the [MIT license](LICENSE).
 
 **Does it upload my videos anywhere?**
 No. Everything runs on your computer, and the original file is never changed.
@@ -99,13 +99,18 @@ FFmpeg is licensed under the LGPL; source code: <https://ffmpeg.org> and <https:
 Atak Viewer is sponsored by [Atak Domain](https://www.atakdomain.com/): domain names, hosting, corporate e-mail and
 SSL certificates.
 
+## License
+
+Atak Viewer is released under the [MIT license](LICENSE). The bundled FFmpeg is a separate program under the LGPL.
+
 ---
 
 ## Türkçe
 
 ### Atak Viewer: Windows için ücretsiz MOV oynatıcı
 
-**Atak Viewer**, Windows için ücretsiz bir **MOV dosyası açma** ve oynatma programıdır. `.mov` dosyasına çift
+**Atak Viewer**, Windows için ücretsiz ve açık kaynaklı (MIT lisansı) bir **MOV dosyası açma** ve oynatma
+programıdır. `.mov` dosyasına çift
 tıklayın, video oynasın. Windows'un kendi uygulamalarının açamadığı MOV dosyaları da buna dahil: iPhone HEVC (H.265),
 Fujifilm gibi kameraların 10-bit 4:2:2 görüntüleri ve Apple ProRes.
 

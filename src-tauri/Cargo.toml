@@ -3,6 +3,7 @@ name = "atak-viewer"
 version = "0.1.0"
 description = "Atak Viewer: MOV video oynatıcı"
 authors = ["Yavuz Selim YAZICI"]
+license = "MIT"
 edition = "2021"
 
 [lib]
