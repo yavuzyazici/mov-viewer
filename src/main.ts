@@ -1,10 +1,11 @@
-import { Channel, convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { aspectLabel, formatBytes, formatDate, formatRate, formatTime, relativeTime } from "./format";
+import { LiveStream, type ProbeInfo } from "./live";
 import { loadPrefs, recent, savePrefs } from "./store";
 import "./styles.css";
 
@@ -25,14 +26,12 @@ interface Source {
   modified: number | null;
   /** Only set for files opened from disk through Tauri. */
   file?: VideoFile;
-  /** Playing ffmpeg's H.264 copy instead of the original file. */
+  /** Playing ffmpeg's H.264 instead of the original file. */
   compat?: boolean;
-}
-
-/** Sent by `make_compatible` while ffmpeg runs. */
-interface ConvertProgress {
-  ratio: number | null;
-  remaining: number | null;
+  /** What ffmpeg found in the original (codec, real resolution). */
+  probe?: ProbeInfo;
+  /** Set while the H.264 is being produced during playback. */
+  live?: LiveStream;
 }
 
 const isTauri = "__TAURI_INTERNALS__" in window;
@@ -94,7 +93,6 @@ const prevBtn = $<HTMLButtonElement>("prev-btn");
 const nextBtn = $<HTMLButtonElement>("next-btn");
 const titleEl = $("title");
 const errorEl = $("error");
-const convertEl = $("convert");
 const helpEl = $("help");
 const toasts = $("toasts");
 const fileInput = $<HTMLInputElement>("file-input");
@@ -154,17 +152,22 @@ function openBlob(file: File) {
   load({ url: URL.createObjectURL(file), name: file.name, size: file.size, modified: file.lastModified });
 }
 
-function load(source: Source) {
+/** Saved position to continue from, unless it is near the start or the end. */
+function resumePoint(path: string) {
+  const saved = recent.get(path);
+  return saved && saved.pos > 10 && saved.pos < saved.dur - 10 ? saved.pos : 0;
+}
+
+function load(source: Source, resumeAt = source.file ? resumePoint(source.file.path) : 0) {
   saveProgress();
-  stopConverting();
+  state.source?.live?.destroy();
   if (state.source?.url.startsWith("blob:")) URL.revokeObjectURL(state.source.url);
 
   state.source = source;
   state.frameDur = 1 / 30;
   state.frameSampled = false;
   state.lastMediaTime = -1;
-  const saved = source.file && recent.get(source.file.path);
-  state.resumeAt = saved && saved.pos > 10 && saved.pos < saved.dur - 10 ? saved.pos : 0;
+  state.resumeAt = resumeAt;
 
   app.classList.remove("is-empty", "has-error", "is-audio-only");
   app.classList.add("is-loading");
@@ -189,7 +192,7 @@ function load(source: Source) {
 
 function closeVideo() {
   saveProgress();
-  stopConverting();
+  state.source?.live?.destroy();
   video.pause();
   video.removeAttribute("src");
   video.load();
@@ -228,63 +231,62 @@ function openSibling(step: 1 | -1) {
   if (target) openPath(target);
 }
 
-/* ---------- Converting unsupported codecs ---------- */
+/* ---------- Codecs the webview can't decode ---------- */
 
-const isConverting = () => app.classList.contains("is-converting");
 const canConvert = () => isTauri && !!state.source?.file && !state.source.compat;
 
-/** Swaps the unplayable original for ffmpeg's cached H.264 copy; progress, siblings and resume stay on the original. */
-async function convert() {
+/**
+ * Plays the original through ffmpeg's H.264: the cached copy when an earlier playback finished one,
+ * otherwise a conversion that streams in while it runs, so playback starts within a second.
+ * Progress, siblings and resume stay keyed on the original file.
+ */
+async function playThroughFfmpeg() {
   const source = state.source!;
-  app.classList.add("is-converting");
-  app.classList.remove("is-loading", "is-audio-only", "has-error");
-  errorEl.hidden = true;
-  video.pause();
+  const path = source.file!.path;
+  const resumeAt = resumePoint(path);
+  // Emptying the element (instead of pausing it) keeps the audio-only attempt from saving its position.
   video.removeAttribute("src");
   video.load();
-  renderConvert({ ratio: null, remaining: null });
-  convertEl.hidden = false;
+  app.classList.remove("has-error", "is-audio-only");
+  app.classList.add("is-loading");
+  errorEl.hidden = true;
 
-  const onProgress = new Channel<ConvertProgress>();
-  onProgress.onmessage = (p) => state.source === source && renderConvert(p);
+  let cached: string | null;
   try {
-    const path = await invoke<string>("make_compatible", { path: source.file!.path, onProgress });
-    if (state.source !== source) return;
-    stopConverting();
-    load({ ...source, url: convertFileSrc(path), compat: true });
+    cached = await invoke<string | null>("cached_copy", { path });
   } catch (err) {
-    if (state.source !== source) return;
-    stopConverting();
-    if (err === "cancelled") closeVideo();
-    else showErrorCard("Video oynatılabilir hale getirilemedi.", String(err));
+    if (state.source === source) showErrorCard("Video açılamadı.", String(err));
+    return;
   }
-}
+  if (state.source !== source) return;
 
-function stopConverting() {
-  if (!isConverting()) return;
-  invoke("cancel_conversion");
-  app.classList.remove("is-converting");
-  convertEl.hidden = true;
-}
-
-function renderConvert({ ratio, remaining }: ConvertProgress) {
-  convertEl.classList.toggle("is-indeterminate", ratio === null);
-  convertEl.style.setProperty("--r", String(ratio ?? 0));
-  $("convert-pct").textContent = ratio === null ? "" : `%${Math.round(ratio * 100)}`;
-  $("convert-meta").textContent =
-    remaining === null
-      ? "Başlatılıyor…"
-      : remaining < 1
-        ? "Bitiyor…"
-        : remaining < 60
-          ? `Yaklaşık ${Math.ceil(remaining)} sn kaldı`
-          : `Yaklaşık ${Math.ceil(remaining / 60)} dk kaldı`;
+  // The probe only feeds the stream setup and the info panel; it runs alongside ffmpeg's start.
+  const probe = invoke<ProbeInfo>("probe_video", { path });
+  let next: Source;
+  if (cached) {
+    next = { ...source, url: convertFileSrc(cached), compat: true };
+  } else {
+    const live: LiveStream = new LiveStream(video, path, probe, resumeAt, {
+      onError: (message) => {
+        if (state.source?.live === live) showErrorCard("Video oynatılabilir hale getirilemedi.", message);
+      },
+      onProgress: renderBuffered,
+    });
+    next = { ...source, url: live.url, compat: true, live };
+  }
+  load(next, resumeAt);
+  probe
+    .then((info) => {
+      next.probe = info;
+      if (state.source === next) renderInfo();
+    })
+    .catch(() => {});
 }
 
 /* ---------- Playback ---------- */
 
 function togglePlay() {
-  if (!state.source || app.classList.contains("has-error") || isConverting()) return;
+  if (!state.source || app.classList.contains("has-error")) return;
   const willPlay = video.paused || video.ended;
   flash(willPlay ? "i-play" : "i-pause");
   if (willPlay) video.play().catch(() => {});
@@ -420,8 +422,7 @@ function captureThumb(): string | undefined {
 
 function saveProgress() {
   const file = state.source?.file;
-  // While converting, the element holds the audio-only original; its position must not overwrite the saved one.
-  if (!file || !video.duration || isConverting()) return;
+  if (!file || !video.duration) return;
   const thumb = captureThumb();
   recent.update(file.path, {
     pos: video.currentTime,
@@ -483,6 +484,12 @@ function tick() {
 function renderBuffered() {
   const d = video.duration;
   if (!d) return;
+  // While converting, show how far ffmpeg got: that part can be watched and seeked into.
+  const live = state.source?.live;
+  if (live) {
+    seek.style.setProperty("--b", String(Math.min(1, live.converted / d)));
+    return;
+  }
   let end = 0;
   for (let i = 0; i < video.buffered.length; i++) {
     if (video.buffered.start(i) <= video.currentTime + 0.5) end = Math.max(end, video.buffered.end(i));
@@ -511,11 +518,23 @@ function renderInfo() {
   const rows: [string, string][] = [["Ad", s.name]];
   if (s.file) rows.push(["Klasör", s.file.folder]);
   if (video.duration) rows.push(["Süre", formatTime(video.duration)]);
-  if (video.videoWidth) {
-    rows.push(["Çözünürlük", `${video.videoWidth} × ${video.videoHeight}`]);
-    rows.push(["En-boy oranı", aspectLabel(video.videoWidth, video.videoHeight)]);
+  // For ffmpeg playback, describe the original file, not the H.264 being played.
+  const width = s.probe?.width ?? video.videoWidth;
+  const height = s.probe?.height ?? video.videoHeight;
+  if (s.probe?.codec) rows.push(["Kodek", s.probe.codec]);
+  if (width) {
+    rows.push(["Çözünürlük", `${width} × ${height}`]);
+    rows.push(["En-boy oranı", aspectLabel(width, height)]);
   }
-  if (s.compat) rows.push(["Oynatma", "Uyumlu kopya (H.264), orijinal kodek bu sistemde çözülemiyor"]);
+  if (s.compat) {
+    const quality = video.videoHeight ? `, ${video.videoHeight}p` : "";
+    rows.push([
+      "Oynatma",
+      s.live
+        ? `Bu kodek sistemde çözülemiyor; izlerken H.264'e dönüştürülüyor${quality}`
+        : `Bu kodek sistemde çözülemiyor; hazır H.264 kopya oynatılıyor${quality}`,
+    ]);
+  }
   rows.push(["Boyut", formatBytes(s.size)]);
   if (video.duration && s.size) {
     const mbps = (s.size * 8) / video.duration / 1e6;
@@ -556,7 +575,7 @@ function showError() {
   const damaged = /DEMUXER_ERROR_(COULD_NOT_OPEN|COULD_NOT_PARSE)/.test(err?.message ?? "");
   const unsupported = err?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED || err?.code === MediaError.MEDIA_ERR_DECODE;
   if (unsupported && !damaged && canConvert()) {
-    convert();
+    playThroughFfmpeg();
     return;
   }
   const hevcHint = navigator.userAgent.includes("Windows")
@@ -697,7 +716,8 @@ function hoverAt(x: number) {
   bubble.style.setProperty("--x", `${clamp(x - rect.left, half - 12, rect.width - half + 12)}px`);
 
   // A second, muted <video> seeks along with the pointer to show a frame preview.
-  const canPreview = video.videoWidth > 0 && !preview.error;
+  // A MediaSource can feed only one element, so live streams get no frame preview.
+  const canPreview = video.videoWidth > 0 && !preview.error && !state.source.live;
   bubble.classList.toggle("no-preview", !canPreview);
   if (!canPreview) return;
   previewTarget = r * d;
@@ -752,7 +772,7 @@ video.addEventListener("loadedmetadata", () => {
   const audioOnly = video.videoWidth === 0;
   // The webview found a video track it can't decode (e.g. HEVC 4:2:2) and kept only the sound.
   if (audioOnly && canConvert()) {
-    convert();
+    playThroughFfmpeg();
     return;
   }
   app.classList.toggle("is-audio-only", audioOnly);
@@ -851,7 +871,6 @@ on("open-btn", pickFile);
 on("open-btn-2", pickFile);
 on("error-open", pickFile);
 on("error-home", closeVideo);
-on("convert-cancel", closeVideo);
 on("home-btn", closeVideo);
 on("help-btn", () => toggleHelp(true));
 on("help-close", () => toggleHelp(false));

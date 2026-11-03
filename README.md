@@ -31,7 +31,8 @@ npm run tauri build
 ## Kodek desteği
 
 Videolar önce sistemin tarayıcı motoruyla (Windows'ta WebView2) oynatılır. Motor görüntüyü çözemezse (ör. kameraların
-HEVC 4:2:2 10-bit, ProRes) uygulama ffmpeg ile H.264 bir kopya hazırlar, ilerlemeyi gösterir ve onu oynatır. Kopya
-önbellekte tutulur (en fazla 4 GB, en eskiler silinir); aynı dosya bir daha açıldığında beklemez.
+HEVC 4:2:2 10-bit, ProRes) ffmpeg videoyu arka planda H.264'e (en fazla 1440p) çevirir ve oynatma ilk yarım saniye
+hazır olunca başlar; çevrilen kısım ilerleme çubuğunda görünür, içinde anında gezinilir. Baştan sona izlenen video
+önbelleğe alınır (en fazla 4 GB, en eskiler silinir) ve bir sonraki açılışta doğrudan oynar.
 
 ffmpeg LGPL lisanslıdır; kaynak kodu: <https://ffmpeg.org> ve <https://github.com/BtbN/FFmpeg-Builds>.

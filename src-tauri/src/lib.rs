@@ -1,4 +1,4 @@
-mod convert;
+mod stream;
 
 use std::{
     fs,
@@ -166,14 +166,29 @@ pub fn run() {
             startup_file: Mutex::new(file_from_args(&args)),
             ..Default::default()
         })
-        .manage(convert::Converter::default())
+        .manage(stream::Streamer::default())
+        .setup(|app| {
+            stream::init(app.handle());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             open_video,
             take_startup_file,
             save_snapshot,
-            convert::make_compatible,
-            convert::cancel_conversion
+            stream::cached_copy,
+            stream::probe_video,
+            stream::start_stream,
+            stream::read_stream,
+            stream::stream_status,
+            stream::stream_seek,
+            stream::stop_stream
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app, event| {
+            // Windows doesn't end child processes with their parent: stop ffmpeg ourselves.
+            if let tauri::RunEvent::Exit = event {
+                app.state::<stream::Streamer>().stop();
+            }
+        });
 }
