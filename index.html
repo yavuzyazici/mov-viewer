@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MOV Viewer</title>
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <svg class="sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="logo-gradient" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#8b5cf6" />
+          <stop offset="1" stop-color="#ec4899" />
+        </linearGradient>
+      </defs>
+      <symbol id="logo" viewBox="0 0 64 64">
+        <rect width="64" height="64" rx="16" fill="url(#logo-gradient)" />
+        <path d="M26.5 21 44 32 26.5 43Z" fill="#fff" stroke="#fff" stroke-width="4" stroke-linejoin="round" />
+      </symbol>
+      <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11-6.86a1 1 0 0 0 0-1.7l-11-6.86A1 1 0 0 0 8 5.14Z" />
+      </symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24" fill="currentColor">
+        <rect x="6" y="4.5" width="4.2" height="15" rx="1.3" />
+        <rect x="13.8" y="4.5" width="4.2" height="15" rx="1.3" />
+      </symbol>
+      <symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 12a8 8 0 1 0 2.34-5.66L4 8.5" />
+        <path d="M4 4.5v4h4" />
+        <text x="12.5" y="15.3" font-size="7.6" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="Segoe UI, system-ui, sans-serif">10</text>
+      </symbol>
+      <symbol id="i-fwd" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 12a8 8 0 1 1-2.34-5.66L20 8.5" />
+        <path d="M20 4.5v4h-4" />
+        <text x="11.5" y="15.3" font-size="7.6" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="Segoe UI, system-ui, sans-serif">10</text>
+      </symbol>
+      <symbol id="i-prev" viewBox="0 0 24 24" fill="currentColor">
+        <rect x="5" y="5" width="2.6" height="14" rx="1.3" />
+        <path d="M18.5 6.2 9.8 11.2a.9.9 0 0 0 0 1.6l8.7 5a.9.9 0 0 0 1.35-.78V6.98a.9.9 0 0 0-1.35-.78Z" />
+      </symbol>
+      <symbol id="i-next" viewBox="0 0 24 24" fill="currentColor">
+        <rect x="16.4" y="5" width="2.6" height="14" rx="1.3" />
+        <path d="M5.5 6.2l8.7 5a.9.9 0 0 1 0 1.6l-8.7 5a.9.9 0 0 1-1.35-.78V6.98a.9.9 0 0 1 1.35-.78Z" />
+      </symbol>
+      <symbol id="i-vol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 5.5 6.5 9H4a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h2.5l4.5 3.5Z" fill="currentColor" />
+        <path d="M15.5 9a4.5 4.5 0 0 1 0 6" />
+        <path d="M18.5 6a8.5 8.5 0 0 1 0 12" />
+      </symbol>
+      <symbol id="i-vol-low" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 5.5 6.5 9H4a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h2.5l4.5 3.5Z" fill="currentColor" />
+        <path d="M15.5 9a4.5 4.5 0 0 1 0 6" />
+      </symbol>
+      <symbol id="i-mute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 5.5 6.5 9H4a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h2.5l4.5 3.5Z" fill="currentColor" />
+        <path d="m16 9.5 5 5M21 9.5l-5 5" />
+      </symbol>
+      <symbol id="i-fs-enter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15" />
+      </symbol>
+      <symbol id="i-fs-exit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 4v3.5A1.5 1.5 0 0 1 7.5 9H4M20 9h-3.5A1.5 1.5 0 0 1 15 7.5V4M15 20v-3.5a1.5 1.5 0 0 1 1.5-1.5H20M4 15h3.5A1.5 1.5 0 0 1 9 16.5V20" />
+      </symbol>
+      <symbol id="i-loop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 2.5 20.5 6 17 9.5" />
+        <path d="M3.5 11.5V10a4 4 0 0 1 4-4h13" />
+        <path d="M7 21.5 3.5 18 7 14.5" />
+        <path d="M20.5 12.5V14a4 4 0 0 1-4 4h-13" />
+      </symbol>
+      <symbol id="i-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3.5 8.5a2 2 0 0 1 2-2h2l1.6-2.2a1 1 0 0 1 .8-.4h4.2a1 1 0 0 1 .8.4l1.6 2.2h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z" />
+        <circle cx="12" cy="13" r="3.6" />
+      </symbol>
+      <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 11v5.5M12 7.8v.01" />
+      </symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3.5 7.5a2 2 0 0 1 2-2h3.6a2 2 0 0 1 1.5.67l1.1 1.26a2 2 0 0 0 1.5.67h5.3a2 2 0 0 1 2 2v7.4a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z" />
+      </symbol>
+      <symbol id="i-film" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3.5" y="4" width="17" height="16" rx="2.5" />
+        <path d="M7.5 4v16M16.5 4v16M3.5 9h4M3.5 15h4M16.5 9h4M16.5 15h4" />
+      </symbol>
+      <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
+      </symbol>
+      <symbol id="i-keyboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2.5" y="6" width="19" height="12" rx="2.5" />
+        <path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M8 14h8" />
+      </symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.3 4.2 2.6 17.6a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z" />
+        <path d="M12 9.5V14M12 17.2v.01" />
+      </symbol>
+      <symbol id="i-drop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3.5v11" />
+        <path d="m7.5 10 4.5 4.5 4.5-4.5" />
+        <path d="M4 15.5v2A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5v-2" />
+      </symbol>
+      <symbol id="i-win-min" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1">
+        <path d="M0 5.5h10" />
+      </symbol>
+      <symbol id="i-win-max" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1">
+        <rect x=".5" y=".5" width="9" height="9" rx="1.2" />
+      </symbol>
+      <symbol id="i-win-restore" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1">
+        <rect x=".5" y="2.5" width="7" height="7" rx="1.2" />
+        <path d="M2.5 2.5v-.8A1.2 1.2 0 0 1 3.7.5h4.6a1.2 1.2 0 0 1 1.2 1.2v4.6a1.2 1.2 0 0 1-1.2 1.2h-.8" />
+      </symbol>
+      <symbol id="i-win-close" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1">
+        <path d="M.5.5l9 9M9.5.5l-9 9" />
+      </symbol>
+    </svg>
+
+    <div id="app" class="app is-empty is-paused">
+      <header class="titlebar" id="titlebar" data-tauri-drag-region>
+        <div class="titlebar__brand" data-tauri-drag-region>
+          <button class="titlebar__home" id="home-btn" title="Başlangıç ekranı">
+            <svg class="titlebar__logo"><use href="#logo" /></svg>
+          </button>
+          <span class="titlebar__name">MOV Viewer</span>
+        </div>
+        <div class="titlebar__title" id="title" data-tauri-drag-region></div>
+        <div class="titlebar__win">
+          <button class="win-btn" id="win-min" aria-label="Simge durumuna küçült">
+            <svg class="icon-win"><use href="#i-win-min" /></svg>
+          </button>
+          <button class="win-btn" id="win-max" aria-label="Ekranı kapla">
+            <svg class="icon-win"><use id="win-max-icon" href="#i-win-max" /></svg>
+          </button>
+          <button class="win-btn win-btn--close" id="win-close" aria-label="Kapat">
+            <svg class="icon-win"><use href="#i-win-close" /></svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="stage" id="stage">
+        <video id="video" class="video" preload="auto" playsinline></video>
+
+        <div class="audio-only">
+          <svg class="icon"><use href="#i-vol" /></svg>
+          <span>Görüntü bu sistemde çözülemiyor, yalnızca ses oynatılıyor.</span>
+        </div>
+
+        <section class="empty" id="empty">
+          <div class="empty__inner">
+            <svg class="empty__logo"><use href="#logo" /></svg>
+            <h1 class="empty__title">MOV videolarını hemen izle</h1>
+            <p class="empty__lead">Bir videoyu pencereye sürükleyin ya da bilgisayarınızdan seçin.</p>
+            <button class="btn btn--primary" id="open-btn">
+              <svg class="icon"><use href="#i-folder" /></svg>
+              Dosya aç
+              <kbd>Ctrl O</kbd>
+            </button>
+
+            <div class="recent" id="recent" hidden>
+              <div class="recent__head">
+                <span>Son açılanlar</span>
+                <button class="link" id="recent-clear">Listeyi temizle</button>
+              </div>
+              <ul class="recent__list" id="recent-list"></ul>
+            </div>
+          </div>
+          <button class="empty__hint" id="help-btn">
+            <svg class="icon"><use href="#i-keyboard" /></svg>
+            Klavye kısayolları <kbd>?</kbd>
+          </button>
+        </section>
+
+        <div class="flash" id="flash"><svg class="icon"><use id="flash-icon" href="#i-play" /></svg></div>
+        <div class="spinner"></div>
+        <div class="osd" id="osd">
+          <span id="osd-text"></span>
+          <span class="osd__bar"><span></span></span>
+        </div>
+        <div class="shutter" id="shutter"></div>
+        <div class="mini-progress"><span></span></div>
+
+        <section class="error" id="error" hidden>
+          <div class="error__card">
+            <div class="error__icon"><svg class="icon"><use href="#i-alert" /></svg></div>
+            <h2>Bu video oynatılamıyor</h2>
+            <p id="error-text"></p>
+            <code id="error-detail"></code>
+            <div class="error__actions">
+              <button class="btn btn--ghost" id="error-home">Başlangıca dön</button>
+              <button class="btn btn--primary" id="error-open">Başka dosya aç</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="controls" id="controls">
+          <div class="seek-row">
+            <span class="time" id="time-cur">0:00</span>
+            <div class="seek" id="seek">
+              <div class="seek__track" id="seek-track">
+                <div class="seek__buffer"></div>
+                <div class="seek__hover"></div>
+                <div class="seek__fill"></div>
+                <div class="seek__thumb"></div>
+              </div>
+              <div class="seek__bubble" id="bubble">
+                <video id="preview" muted preload="metadata"></video>
+                <span id="bubble-time">0:00</span>
+              </div>
+            </div>
+            <button class="time time--dur" id="time-dur" title="Kalan süreyi göster">0:00</button>
+          </div>
+
+          <div class="bar">
+            <div class="bar__group">
+              <button class="ctl" id="open-btn-2" title="Dosya aç (Ctrl+O)">
+                <svg class="icon"><use href="#i-folder" /></svg>
+              </button>
+              <div class="volume">
+                <button class="ctl" id="mute-btn" title="Sesi kapat (M)">
+                  <svg class="icon"><use id="vol-icon" href="#i-vol" /></svg>
+                </button>
+                <input type="range" id="volume" min="0" max="1" step="0.01" aria-label="Ses düzeyi" />
+              </div>
+            </div>
+
+            <div class="bar__group bar__group--center">
+              <button class="ctl nav" id="prev-btn" title="Önceki video (Shift+P)">
+                <svg class="icon"><use href="#i-prev" /></svg>
+              </button>
+              <button class="ctl" id="back-btn" title="10 sn geri (J)">
+                <svg class="icon"><use href="#i-back" /></svg>
+              </button>
+              <button class="ctl ctl--play" id="play-btn" title="Oynat / duraklat (Boşluk)">
+                <svg class="icon"><use id="play-icon" href="#i-play" /></svg>
+              </button>
+              <button class="ctl" id="fwd-btn" title="10 sn ileri (L)">
+                <svg class="icon"><use href="#i-fwd" /></svg>
+              </button>
+              <button class="ctl nav" id="next-btn" title="Sonraki video (Shift+N)">
+                <svg class="icon"><use href="#i-next" /></svg>
+              </button>
+            </div>
+
+            <div class="bar__group bar__group--end">
+              <div class="menu-wrap">
+                <button class="ctl ctl--text" id="speed-btn" title="Oynatma hızı ([ / ])">1×</button>
+                <div class="menu" id="speed-menu" role="menu"></div>
+              </div>
+              <button class="ctl opt" id="loop-btn" title="Döngü (R)">
+                <svg class="icon"><use href="#i-loop" /></svg>
+              </button>
+              <button class="ctl opt" id="snap-btn" title="Kareyi kaydet (S)">
+                <svg class="icon"><use href="#i-camera" /></svg>
+              </button>
+              <button class="ctl" id="info-btn" title="Dosya bilgisi (I)">
+                <svg class="icon"><use href="#i-info" /></svg>
+              </button>
+              <button class="ctl" id="fs-btn" title="Tam ekran (F)">
+                <svg class="icon"><use id="fs-icon" href="#i-fs-enter" /></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <aside class="info" id="info">
+          <header class="info__head">
+            <h3>Dosya bilgisi</h3>
+            <button class="ctl ctl--sm" id="info-close" title="Kapat (Esc)">
+              <svg class="icon"><use href="#i-x" /></svg>
+            </button>
+          </header>
+          <dl class="info__list" id="info-list"></dl>
+          <button class="btn btn--ghost btn--block" id="reveal-btn">
+            <svg class="icon"><use href="#i-folder" /></svg>
+            Klasörde göster
+          </button>
+        </aside>
+
+        <div class="drop">
+          <div class="drop__inner">
+            <span class="drop__icon"><svg class="icon"><use href="#i-drop" /></svg></span>
+            <strong>Bırakın, hemen oynatalım</strong>
+            <span>.mov, .mp4 ve .m4v dosyaları</span>
+          </div>
+        </div>
+
+        <section class="help" id="help" hidden>
+          <div class="help__card" role="dialog" aria-labelledby="help-title">
+            <header class="help__head">
+              <h3 id="help-title">Klavye kısayolları</h3>
+              <button class="ctl ctl--sm" id="help-close" title="Kapat (Esc)">
+                <svg class="icon"><use href="#i-x" /></svg>
+              </button>
+            </header>
+            <div class="help__grid" id="help-grid"></div>
+          </div>
+        </section>
+
+        <div class="toasts" id="toasts"></div>
+      </main>
+
+      <input type="file" id="file-input" accept=".mov,.mp4,.m4v,.webm,video/*" hidden />
+    </div>
+  </body>
+</html>
