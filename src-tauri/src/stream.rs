@@ -41,17 +41,21 @@ const ENCODERS: &[&[&str]] = &[
     &["-c:v", "h264_qsv", "-preset", "faster", "-b:v", "16M", "-maxrate", "24M"],
     &["-c:v", "h264_amf", "-quality", "speed", "-rc", "vbr_peak", "-b:v", "16M", "-maxrate", "24M"],
     &["-c:v", "h264_mf", "-hw_encoding", "1", "-b:v", "16M"],
-    &["-c:v", "libopenh264", "-b:v", "12M"],
+    // Software fallback (e.g. Linux without a GPU encoder): threads + slices take it from 0.7× to
+    // ~1.2× for 4K 4:2:2 HEVC, where decoding becomes the limit.
+    &["-c:v", "libopenh264", "-b:v", "12M", "-threads", "8", "-slices", "8"],
 ];
 
 fn ffmpeg() -> Command {
-    // Tauri copies the `externalBin` sidecar next to the app executable.
-    let name = if cfg!(windows) { "ffmpeg.exe" } else { "ffmpeg" };
+    // Tauri copies the `externalBin` sidecar next to the app executable. It is called atak-ffmpeg
+    // because Linux packages install it into /usr/bin, where a plain "ffmpeg" would clash with the
+    // distribution's own; a system ffmpeg on PATH is the fallback.
+    let name = if cfg!(windows) { "atak-ffmpeg.exe" } else { "atak-ffmpeg" };
     let path = std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(|dir| dir.join(name)))
         .filter(|p| p.is_file())
-        .unwrap_or_else(|| PathBuf::from(name));
+        .unwrap_or_else(|| PathBuf::from("ffmpeg"));
     let mut cmd = Command::new(path);
     cmd.stdin(Stdio::null());
     #[cfg(windows)]
@@ -202,10 +206,17 @@ pub struct ProbeInfo {
     height: Option<u32>,
 }
 
+#[derive(Serialize)]
+pub struct CachedCopy {
+    path: String,
+    /// Where to play it from when the asset protocol can't be used (Linux).
+    url: Option<String>,
+}
+
 /// The finished H.264 copy from an earlier full playback, if any, ready for native playback.
 /// Only a file check, so it doesn't delay the start like launching ffmpeg would.
 #[tauri::command]
-pub fn cached_copy(app: AppHandle, path: String) -> Result<Option<String>, String> {
+pub fn cached_copy(app: AppHandle, media: State<crate::Media>, path: String) -> Result<Option<CachedCopy>, String> {
     let cached = cache_dir(&app)?.join(format!("{}.mp4", cache_key(Path::new(&path))?));
     if !cached.is_file() {
         return Ok(None);
@@ -218,7 +229,10 @@ pub fn cached_copy(app: AppHandle, path: String) -> Result<Option<String>, Strin
     app.asset_protocol_scope()
         .allow_file(&cached)
         .map_err(|e| e.to_string())?;
-    Ok(Some(cached.to_string_lossy().into_owned()))
+    Ok(Some(CachedCopy {
+        url: media.url(&cached),
+        path: cached.to_string_lossy().into_owned(),
+    }))
 }
 
 /// "Duration: 00:01:02.50," → 62.5

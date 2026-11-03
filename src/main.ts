@@ -12,6 +12,8 @@ import "./styles.css";
 
 /** Returned by the `open_video` command. */
 interface VideoFile {
+  /** Set on Linux, where the asset protocol can't feed `<video>`; play from here instead. */
+  url: string | null;
   path: string;
   name: string;
   folder: string;
@@ -102,6 +104,8 @@ const state = {
   source: null as Source | null,
   siblings: [] as string[],
   resumeAt: 0,
+  /** Resume without the "continuing where you left off" toast. */
+  quietResume: false,
   showRemaining: false,
   scrubbing: false,
   playAfterScrub: false,
@@ -142,7 +146,7 @@ async function openPath(path: string) {
     const file = await invoke<VideoFile>("open_video", { path });
     const collator = new Intl.Collator("tr", { numeric: true, sensitivity: "base" });
     state.siblings = file.siblings.sort(collator.compare);
-    load({ url: convertFileSrc(file.path), name: file.name, size: file.size, modified: file.modified, file });
+    load({ url: file.url ?? convertFileSrc(file.path), name: file.name, size: file.size, modified: file.modified, file });
   } catch (err) {
     toast(String(err), { tone: "error" });
   }
@@ -159,7 +163,7 @@ function resumePoint(path: string) {
   return saved && saved.pos > 10 && saved.pos < saved.dur - 10 ? saved.pos : 0;
 }
 
-function load(source: Source, resumeAt = source.file ? resumePoint(source.file.path) : 0) {
+function load(source: Source, resumeAt = source.file ? resumePoint(source.file.path) : 0, quietResume = false) {
   saveProgress();
   state.source?.live?.destroy();
   if (state.source?.url.startsWith("blob:")) URL.revokeObjectURL(state.source.url);
@@ -169,6 +173,8 @@ function load(source: Source, resumeAt = source.file ? resumePoint(source.file.p
   state.frameSampled = false;
   state.lastMediaTime = -1;
   state.resumeAt = resumeAt;
+  state.quietResume = quietResume;
+  resetSlowCheck();
 
   app.classList.remove("is-empty", "has-error", "is-audio-only");
   app.classList.add("is-loading");
@@ -241,10 +247,11 @@ const canConvert = () => isTauri && !!state.source?.file && !state.source.compat
  * otherwise a conversion that streams in while it runs, so playback starts within a second.
  * Progress, siblings and resume stay keyed on the original file.
  */
-async function playThroughFfmpeg() {
+async function playThroughFfmpeg(continueAt?: number) {
   const source = state.source!;
   const path = source.file!.path;
-  const resumeAt = resumePoint(path);
+  // Switching mid-playback (too slow to decode) continues silently where it was.
+  const resumeAt = continueAt ?? resumePoint(path);
   // Emptying the element (instead of pausing it) keeps the audio-only attempt from saving its position.
   video.removeAttribute("src");
   video.load();
@@ -252,9 +259,9 @@ async function playThroughFfmpeg() {
   app.classList.add("is-loading");
   errorEl.hidden = true;
 
-  let cached: string | null;
+  let cached: { path: string; url: string | null } | null;
   try {
-    cached = await invoke<string | null>("cached_copy", { path });
+    cached = await invoke("cached_copy", { path });
   } catch (err) {
     if (state.source === source) showErrorCard(t("openFailed"), String(err));
     return;
@@ -265,7 +272,7 @@ async function playThroughFfmpeg() {
   const probe = invoke<ProbeInfo>("probe_video", { path });
   let next: Source;
   if (cached) {
-    next = { ...source, url: convertFileSrc(cached), compat: true };
+    next = { ...source, url: cached.url ?? convertFileSrc(cached.path), compat: true };
   } else {
     const live: LiveStream = new LiveStream(video, path, probe, resumeAt, {
       onError: (message) => {
@@ -275,7 +282,7 @@ async function playThroughFfmpeg() {
     });
     next = { ...source, url: live.url, compat: true, live };
   }
-  load(next, resumeAt);
+  load(next, resumeAt, continueAt !== undefined);
   probe
     .then((info) => {
       next.probe = info;
@@ -575,7 +582,8 @@ function showError() {
     playThroughFfmpeg();
     return;
   }
-  const hevcHint = navigator.userAgent.includes("Windows") ? t("hevcHint") : "";
+  const ua = navigator.userAgent;
+  const hevcHint = ua.includes("Windows") ? t("hevcHint") : ua.includes("Linux") ? t("linuxHint") : "";
   showErrorCard(
     damaged
       ? t("damaged")
@@ -781,14 +789,44 @@ video.addEventListener("loadedmetadata", () => {
     const at = state.resumeAt;
     state.resumeAt = 0;
     video.currentTime = at;
-    toast(t("resumed", { time: formatTime(at) }), {
-      action: { label: t("startOver"), run: () => seekTo(0) },
-      ms: 6000,
-    });
+    if (!state.quietResume) {
+      toast(t("resumed", { time: formatTime(at) }), {
+        action: { label: t("startOver"), run: () => seekTo(0) },
+        ms: 6000,
+      });
+    }
   }
   renderTime();
   renderInfo();
 });
+
+// Direct playback that can't keep up (e.g. software decoding of 4K 4:2:2 HEVC on Linux, ~0.3×):
+// two 2-second windows below 0.75× switch to ffmpeg, which decodes on all cores, at the same spot.
+const slowCheck = { media: 0, wall: 0, strikes: 0 };
+function resetSlowCheck() {
+  slowCheck.media = video.currentTime;
+  slowCheck.wall = performance.now();
+  slowCheck.strikes = 0;
+}
+for (const ev of ["seeking", "playing", "pause", "ratechange"]) video.addEventListener(ev, resetSlowCheck);
+setInterval(() => {
+  // Loading and buffering stalls (readyState < HAVE_FUTURE_DATA) aren't slow decoding; skip them.
+  const measurable = video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA && !video.paused && !video.seeking;
+  if (!canConvert() || !measurable || video.playbackRate !== 1 || document.hidden) {
+    resetSlowCheck();
+    return;
+  }
+  const now = performance.now();
+  const speed = (video.currentTime - slowCheck.media) / ((now - slowCheck.wall) / 1000);
+  slowCheck.media = video.currentTime;
+  slowCheck.wall = now;
+  if (speed >= 0.75) {
+    slowCheck.strikes = 0;
+  } else if (++slowCheck.strikes >= 2) {
+    toast(t("tooSlow"), { ms: 6000 });
+    playThroughFfmpeg(video.currentTime);
+  }
+}, 2000);
 
 video.addEventListener("play", () => {
   app.classList.add("is-playing");

@@ -1,3 +1,4 @@
+mod media;
 mod stream;
 
 use std::{
@@ -39,9 +40,21 @@ struct AppState {
     current: Mutex<Option<PathBuf>>,
 }
 
+/// Loopback server for video files; only started on Linux, where `asset://` can't feed `<video>`.
+pub(crate) struct Media(Option<media::MediaServer>);
+
+impl Media {
+    /// URL to play `path` from, or None where the page should use the asset protocol.
+    pub(crate) fn url(&self, path: &Path) -> Option<String> {
+        self.0.as_ref().map(|server| server.url(path))
+    }
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct VideoFile {
+    /// Where to play it from when the asset protocol can't be used (Linux).
+    url: Option<String>,
     path: String,
     name: String,
     folder: String,
@@ -62,9 +75,10 @@ fn file_from_args(args: &[String]) -> Option<String> {
     args.iter().skip(1).find(|a| Path::new(a).is_file()).cloned()
 }
 
-/// Validates the file, lets the webview stream it through the asset protocol and returns its details.
+/// Validates the file, lets the webview stream it (asset protocol, or the media server on Linux) and
+/// returns its details.
 #[tauri::command]
-fn open_video(app: AppHandle, state: State<AppState>, path: String) -> Result<VideoFile, String> {
+fn open_video(app: AppHandle, state: State<AppState>, media: State<Media>, path: String) -> Result<VideoFile, String> {
     let path = std::path::absolute(&path).map_err(|e| format!("{}: {e}", msg("Geçersiz yol", "Invalid path")))?;
     let meta = fs::metadata(&path)
         .map_err(|e| format!("{}: {e}", msg("Dosya açılamadı", "Couldn't open the file")))?;
@@ -101,6 +115,7 @@ fn open_video(app: AppHandle, state: State<AppState>, path: String) -> Result<Vi
     *state.current.lock().unwrap() = Some(path.clone());
 
     Ok(VideoFile {
+        url: media.url(&path),
         path: path.to_string_lossy().into_owned(),
         name: name.to_string_lossy().into_owned(),
         folder: folder.to_string_lossy().into_owned(),
@@ -185,6 +200,7 @@ pub fn run() {
             ..Default::default()
         })
         .manage(stream::Streamer::default())
+        .manage(Media(if cfg!(target_os = "linux") { media::MediaServer::start() } else { None }))
         .setup(|app| {
             stream::init(app.handle());
             Ok(())

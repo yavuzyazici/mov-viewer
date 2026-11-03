@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name={{name}}
+GenericName=Video Player
+GenericName[tr]=Video Oynatıcı
+Comment=Play MOV videos, including HEVC and ProRes
+Comment[tr]=MOV videolarını oynatın, HEVC ve ProRes dahil
+Exec={{exec}} %F
+StartupWMClass={{exec}}
+Icon={{icon}}
+Terminal=false
+Categories=AudioVideo;Video;Player;
+Keywords=mov;video;player;viewer;quicktime;hevc;prores;
+MimeType=video/quicktime;
