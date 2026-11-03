@@ -21,6 +21,8 @@ use std::{
 use serde::Serialize;
 use tauri::{ipc::Response, AppHandle, Manager, State};
 
+use crate::msg;
+
 /// Cached copies are trimmed (oldest first) above this size.
 const CACHE_LIMIT: u64 = 4 * 1024 * 1024 * 1024;
 /// Largest chunk handed to the page per read.
@@ -106,12 +108,14 @@ fn cache_dir(app: &AppHandle) -> Result<PathBuf, String> {
         .app_cache_dir()
         .map_err(|e| e.to_string())?
         .join("compat");
-    fs::create_dir_all(&dir).map_err(|e| format!("Önbellek klasörü oluşturulamadı: {e}"))?;
+    fs::create_dir_all(&dir).map_err(|e| {
+        format!("{}: {e}", msg("Önbellek klasörü oluşturulamadı", "Couldn't create the cache folder"))
+    })?;
     Ok(dir)
 }
 
 fn cache_key(path: &Path) -> Result<String, String> {
-    let meta = fs::metadata(path).map_err(|e| format!("Dosya okunamadı: {e}"))?;
+    let meta = fs::metadata(path).map_err(|e| format!("{}: {e}", msg("Dosya okunamadı", "Couldn't read the file")))?;
     let modified = meta
         .modified()
         .ok()
@@ -249,7 +253,7 @@ pub async fn probe_video(path: String) -> Result<ProbeInfo, String> {
     let output = tauri::async_runtime::spawn_blocking(move || ffmpeg().args(["-hide_banner", "-i"]).arg(&src).output())
         .await
         .map_err(|e| e.to_string())?
-        .map_err(|e| format!("ffmpeg başlatılamadı: {e}"))?;
+        .map_err(|e| format!("{}: {e}", msg("ffmpeg başlatılamadı", "Couldn't start ffmpeg")))?;
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     let mut info = ProbeInfo {
@@ -454,7 +458,7 @@ fn run_ffmpeg(job: &Job, src: &Path, start: f64, encoder: &[&str]) -> Outcome {
 
     let mut child = match cmd.spawn() {
         Ok(child) => child,
-        Err(e) => return Outcome::Failed(format!("ffmpeg başlatılamadı: {e}")),
+        Err(e) => return Outcome::Failed(format!("{}: {e}", msg("ffmpeg başlatılamadı", "Couldn't start ffmpeg"))),
     };
     let mut stdout = child.stdout.take().unwrap();
     let stderr = child.stderr.take().unwrap();
@@ -592,7 +596,7 @@ fn run_job(job: Arc<Job>, src: PathBuf, start: f64) {
             }
         }
     }
-    job.update(|p| p.error = Some(format!("Video dönüştürülemedi.\n{error}")));
+    job.update(|p| p.error = Some(format!("{}\n{error}", msg("Video dönüştürülemedi.", "The video couldn't be converted."))));
 }
 
 /// Starts converting `path` from `start` seconds, replacing any running stream.

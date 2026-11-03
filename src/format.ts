@@ -1,4 +1,4 @@
-const LOCALE = "tr-TR";
+import { locale as LOCALE, t } from "./i18n";
 
 /** 75 → "1:15", 3725 → "1:02:05" */
 export function formatTime(seconds: number): string {
@@ -32,7 +32,7 @@ const relative = new Intl.RelativeTimeFormat(LOCALE, { numeric: "auto" });
 
 export function relativeTime(ms: number): string {
   const minutes = Math.round((ms - Date.now()) / 60000);
-  if (minutes > -1) return "az önce";
+  if (minutes > -1) return t("justNow");
   if (minutes > -60) return relative.format(minutes, "minute");
   const hours = Math.round(minutes / 60);
   if (hours > -24) return relative.format(hours, "hour");

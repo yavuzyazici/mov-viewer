@@ -121,20 +121,20 @@
     <div id="app" class="app is-empty is-paused">
       <header class="titlebar" id="titlebar" data-tauri-drag-region>
         <div class="titlebar__brand" data-tauri-drag-region>
-          <button class="titlebar__home" id="home-btn" title="Başlangıç ekranı">
+          <button class="titlebar__home" id="home-btn" title="Başlangıç ekranı" data-i18n-title="home">
             <svg class="titlebar__logo"><use href="#logo" /></svg>
           </button>
           <span class="titlebar__name">Atak Viewer</span>
         </div>
         <div class="titlebar__title" id="title" data-tauri-drag-region></div>
         <div class="titlebar__win">
-          <button class="win-btn" id="win-min" aria-label="Simge durumuna küçült">
+          <button class="win-btn" id="win-min" aria-label="Simge durumuna küçült" data-i18n-aria="minimize">
             <svg class="icon-win"><use href="#i-win-min" /></svg>
           </button>
-          <button class="win-btn" id="win-max" aria-label="Ekranı kapla">
+          <button class="win-btn" id="win-max" aria-label="Ekranı kapla" data-i18n-aria="maximize">
             <svg class="icon-win"><use id="win-max-icon" href="#i-win-max" /></svg>
           </button>
-          <button class="win-btn win-btn--close" id="win-close" aria-label="Kapat">
+          <button class="win-btn win-btn--close" id="win-close" aria-label="Kapat" data-i18n-aria="close">
             <svg class="icon-win"><use href="#i-win-close" /></svg>
           </button>
         </div>
@@ -145,24 +145,24 @@
 
         <div class="audio-only">
           <svg class="icon"><use href="#i-vol" /></svg>
-          <span>Görüntü bu sistemde çözülemiyor, yalnızca ses oynatılıyor.</span>
+          <span data-i18n="audioOnly">Görüntü bu sistemde çözülemiyor, yalnızca ses oynatılıyor.</span>
         </div>
 
         <section class="empty" id="empty">
           <div class="empty__inner">
             <svg class="empty__logo"><use href="#logo" /></svg>
-            <h1 class="empty__title">MOV videolarını hemen izle</h1>
-            <p class="empty__lead">Bir videoyu pencereye sürükleyin ya da bilgisayarınızdan seçin.</p>
+            <h1 class="empty__title" data-i18n="emptyTitle">MOV videolarını hemen izle</h1>
+            <p class="empty__lead" data-i18n="emptyLead">Bir videoyu pencereye sürükleyin ya da bilgisayarınızdan seçin.</p>
             <button class="btn btn--primary" id="open-btn">
               <svg class="icon"><use href="#i-folder" /></svg>
-              Dosya aç
+              <span data-i18n="openFile">Dosya aç</span>
               <kbd>Ctrl O</kbd>
             </button>
 
             <div class="recent" id="recent" hidden>
               <div class="recent__head">
-                <span>Son açılanlar</span>
-                <button class="link" id="recent-clear">Listeyi temizle</button>
+                <span data-i18n="recent">Son açılanlar</span>
+                <button class="link" id="recent-clear" data-i18n="clearList">Listeyi temizle</button>
               </div>
               <ul class="recent__list" id="recent-list"></ul>
             </div>
@@ -170,10 +170,10 @@
           <footer class="empty__footer">
             <button class="empty__hint" id="help-btn">
               <svg class="icon"><use href="#i-keyboard" /></svg>
-              Klavye kısayolları <kbd>?</kbd>
+              <span data-i18n="shortcuts">Klavye kısayolları</span> <kbd>?</kbd>
             </button>
             <span class="empty__sep" aria-hidden="true"></span>
-            <a class="sponsor" id="sponsor" href="https://www.atakdomain.com/" title="atakdomain.com'u tarayıcıda aç">
+            <a class="sponsor" id="sponsor" href="https://www.atakdomain.com/" title="atakdomain.com'u tarayıcıda aç" data-i18n-title="sponsorTitle">
               <span class="sponsor__label">Sponsor</span>
               <span class="sponsor__name">Atak Domain</span>
               <svg class="icon"><use href="#i-external" /></svg>
@@ -193,12 +193,12 @@
         <section class="error" id="error" hidden>
           <div class="error__card">
             <div class="error__icon"><svg class="icon"><use href="#i-alert" /></svg></div>
-            <h2>Bu video oynatılamıyor</h2>
+            <h2 data-i18n="cantPlay">Bu video oynatılamıyor</h2>
             <p id="error-text"></p>
             <code id="error-detail"></code>
             <div class="error__actions">
-              <button class="btn btn--ghost" id="error-home">Başlangıca dön</button>
-              <button class="btn btn--primary" id="error-open">Başka dosya aç</button>
+              <button class="btn btn--ghost" id="error-home" data-i18n="backToStart">Başlangıca dön</button>
+              <button class="btn btn--primary" id="error-open" data-i18n="openAnother">Başka dosya aç</button>
             </div>
           </div>
         </section>
@@ -218,55 +218,55 @@
                 <span id="bubble-time">0:00</span>
               </div>
             </div>
-            <button class="time time--dur" id="time-dur" title="Kalan süreyi göster">0:00</button>
+            <button class="time time--dur" id="time-dur" title="Kalan süreyi göster" data-i18n-title="showRemaining">0:00</button>
           </div>
 
           <div class="bar">
             <div class="bar__group">
-              <button class="ctl" id="open-btn-2" title="Dosya aç (Ctrl+O)">
+              <button class="ctl" id="open-btn-2" title="Dosya aç (Ctrl+O)" data-i18n-title="openFileTip">
                 <svg class="icon"><use href="#i-folder" /></svg>
               </button>
               <div class="volume">
-                <button class="ctl" id="mute-btn" title="Sesi kapat (M)">
+                <button class="ctl" id="mute-btn" title="Sesi kapat (M)" data-i18n-title="muteTip">
                   <svg class="icon"><use id="vol-icon" href="#i-vol" /></svg>
                 </button>
-                <input type="range" id="volume" min="0" max="1" step="0.01" aria-label="Ses düzeyi" />
+                <input type="range" id="volume" min="0" max="1" step="0.01" aria-label="Ses düzeyi" data-i18n-aria="volume" />
               </div>
             </div>
 
             <div class="bar__group bar__group--center">
-              <button class="ctl nav" id="prev-btn" title="Önceki video (Shift+P)">
+              <button class="ctl nav" id="prev-btn" title="Önceki video (Shift+P)" data-i18n-title="prevTip">
                 <svg class="icon"><use href="#i-prev" /></svg>
               </button>
-              <button class="ctl" id="back-btn" title="10 sn geri (J)">
+              <button class="ctl" id="back-btn" title="10 sn geri (J)" data-i18n-title="backTip">
                 <svg class="icon"><use href="#i-back" /></svg>
               </button>
-              <button class="ctl ctl--play" id="play-btn" title="Oynat / duraklat (Boşluk)">
+              <button class="ctl ctl--play" id="play-btn" title="Oynat / duraklat (Boşluk)" data-i18n-title="playTip">
                 <svg class="icon"><use id="play-icon" href="#i-play" /></svg>
               </button>
-              <button class="ctl" id="fwd-btn" title="10 sn ileri (L)">
+              <button class="ctl" id="fwd-btn" title="10 sn ileri (L)" data-i18n-title="fwdTip">
                 <svg class="icon"><use href="#i-fwd" /></svg>
               </button>
-              <button class="ctl nav" id="next-btn" title="Sonraki video (Shift+N)">
+              <button class="ctl nav" id="next-btn" title="Sonraki video (Shift+N)" data-i18n-title="nextTip">
                 <svg class="icon"><use href="#i-next" /></svg>
               </button>
             </div>
 
             <div class="bar__group bar__group--end">
               <div class="menu-wrap">
-                <button class="ctl ctl--text" id="speed-btn" title="Oynatma hızı ([ / ])">1×</button>
+                <button class="ctl ctl--text" id="speed-btn" title="Oynatma hızı ([ / ])" data-i18n-title="speedTip">1×</button>
                 <div class="menu" id="speed-menu" role="menu"></div>
               </div>
-              <button class="ctl opt" id="loop-btn" title="Döngü (R)">
+              <button class="ctl opt" id="loop-btn" title="Döngü (R)" data-i18n-title="loopTip">
                 <svg class="icon"><use href="#i-loop" /></svg>
               </button>
-              <button class="ctl opt" id="snap-btn" title="Kareyi kaydet (S)">
+              <button class="ctl opt" id="snap-btn" title="Kareyi kaydet (S)" data-i18n-title="snapTip">
                 <svg class="icon"><use href="#i-camera" /></svg>
               </button>
-              <button class="ctl" id="info-btn" title="Dosya bilgisi (I)">
+              <button class="ctl" id="info-btn" title="Dosya bilgisi (I)" data-i18n-title="infoTip">
                 <svg class="icon"><use href="#i-info" /></svg>
               </button>
-              <button class="ctl" id="fs-btn" title="Tam ekran (F)">
+              <button class="ctl" id="fs-btn" title="Tam ekran (F)" data-i18n-title="fullscreenTip">
                 <svg class="icon"><use id="fs-icon" href="#i-fs-enter" /></svg>
               </button>
             </div>
@@ -275,31 +275,31 @@
 
         <aside class="info" id="info">
           <header class="info__head">
-            <h3>Dosya bilgisi</h3>
-            <button class="ctl ctl--sm" id="info-close" title="Kapat (Esc)">
+            <h3 data-i18n="fileInfo">Dosya bilgisi</h3>
+            <button class="ctl ctl--sm" id="info-close" title="Kapat (Esc)" data-i18n-title="closeTip">
               <svg class="icon"><use href="#i-x" /></svg>
             </button>
           </header>
           <dl class="info__list" id="info-list"></dl>
           <button class="btn btn--ghost btn--block" id="reveal-btn">
             <svg class="icon"><use href="#i-folder" /></svg>
-            Klasörde göster
+            <span data-i18n="showInFolder">Klasörde göster</span>
           </button>
         </aside>
 
         <div class="drop">
           <div class="drop__inner">
             <span class="drop__icon"><svg class="icon"><use href="#i-drop" /></svg></span>
-            <strong>Bırakın, hemen oynatalım</strong>
-            <span>.mov, .mp4 ve .m4v dosyaları</span>
+            <strong data-i18n="dropTitle">Bırakın, hemen oynatalım</strong>
+            <span data-i18n="dropFormats">.mov, .mp4 ve .m4v dosyaları</span>
           </div>
         </div>
 
         <section class="help" id="help" hidden>
           <div class="help__card" role="dialog" aria-labelledby="help-title">
             <header class="help__head">
-              <h3 id="help-title">Klavye kısayolları</h3>
-              <button class="ctl ctl--sm" id="help-close" title="Kapat (Esc)">
+              <h3 id="help-title" data-i18n="shortcuts">Klavye kısayolları</h3>
+              <button class="ctl ctl--sm" id="help-close" title="Kapat (Esc)" data-i18n-title="closeTip">
                 <svg class="icon"><use href="#i-x" /></svg>
               </button>
             </header>

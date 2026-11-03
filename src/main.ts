@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { aspectLabel, formatBytes, formatDate, formatRate, formatTime, relativeTime } from "./format";
+import { lang, locale, t, translatePage } from "./i18n";
 import { LiveStream, type ProbeInfo } from "./live";
 import { loadPrefs, recent, savePrefs } from "./store";
 import "./styles.css";
@@ -40,22 +41,22 @@ const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 const HIDE_DELAY = 2200;
 
 const SHORTCUTS: [string[], string][] = [
-  [["Boşluk"], "Oynat / duraklat"],
-  [["←", "→"], "5 sn geri / ileri"],
-  [["J", "L"], "10 sn geri / ileri"],
-  [[",", "."], "Kare kare geri / ileri"],
-  [["↑", "↓"], "Sesi aç / kıs"],
-  [["M"], "Sesi kapat"],
-  [["[", "]"], "Yavaşlat / hızlandır"],
-  [["0–9"], "Videonun %0–90'ına git"],
-  [["F"], "Tam ekran (ya da çift tık)"],
-  [["R"], "Döngü"],
-  [["S"], "Kareyi resim olarak kaydet"],
-  [["I"], "Dosya bilgisi"],
-  [["Shift", "N"], "Klasördeki sonraki video"],
-  [["Shift", "P"], "Klasördeki önceki video"],
-  [["Ctrl", "O"], "Dosya aç"],
-  [["Esc"], "Kapat / tam ekrandan çık"],
+  [[t("keySpace")], t("scPlay")],
+  [["←", "→"], t("sc5")],
+  [["J", "L"], t("sc10")],
+  [[",", "."], t("scFrame")],
+  [["↑", "↓"], t("scVolume")],
+  [["M"], t("scMute")],
+  [["[", "]"], t("scSpeed")],
+  [["0–9"], t("scPercent")],
+  [["F"], t("scFullscreen")],
+  [["R"], t("scLoop")],
+  [["S"], t("scSnap")],
+  [["I"], t("scInfo")],
+  [["Shift", "N"], t("scNext")],
+  [["Shift", "P"], t("scPrev")],
+  [["Ctrl", "O"], t("scOpen")],
+  [["Esc"], t("scClose")],
 ];
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -125,12 +126,12 @@ async function pickFile() {
     return;
   }
   const path = await openDialog({
-    title: "Video aç",
+    title: t("openVideo"),
     multiple: false,
     directory: false,
     filters: [
-      { name: "Videolar", extensions: ["mov", "mp4", "m4v", "webm"] },
-      { name: "QuickTime film", extensions: ["mov"] },
+      { name: t("videos"), extensions: ["mov", "mp4", "m4v", "webm"] },
+      { name: t("quicktime"), extensions: ["mov"] },
     ],
   });
   if (typeof path === "string") openPath(path);
@@ -255,7 +256,7 @@ async function playThroughFfmpeg() {
   try {
     cached = await invoke<string | null>("cached_copy", { path });
   } catch (err) {
-    if (state.source === source) showErrorCard("Video açılamadı.", String(err));
+    if (state.source === source) showErrorCard(t("openFailed"), String(err));
     return;
   }
   if (state.source !== source) return;
@@ -268,7 +269,7 @@ async function playThroughFfmpeg() {
   } else {
     const live: LiveStream = new LiveStream(video, path, probe, resumeAt, {
       onError: (message) => {
-        if (state.source?.live === live) showErrorCard("Video oynatılabilir hale getirilemedi.", message);
+        if (state.source?.live === live) showErrorCard(t("convertFailed"), message);
       },
       onProgress: renderBuffered,
     });
@@ -302,36 +303,36 @@ function seekTo(t: number) {
 function seekBy(delta: number) {
   if (!video.duration) return;
   seekTo(video.currentTime + delta);
-  osd(`${delta > 0 ? "+" : "−"}${Math.abs(delta)} sn  ·  ${formatTime(video.currentTime)}`);
+  osd(`${delta > 0 ? "+" : "−"}${Math.abs(delta)} ${t("seconds")}  ·  ${formatTime(video.currentTime)}`);
 }
 
 function stepFrame(dir: 1 | -1) {
   if (!video.paused) video.pause();
   seekTo(video.currentTime + dir * state.frameDur);
-  osd(dir > 0 ? "Sonraki kare" : "Önceki kare");
+  osd(t(dir > 0 ? "nextFrame" : "prevFrame"));
 }
 
 function changeVolume(delta: number) {
   const next = clamp((video.muted ? 0 : video.volume) + delta, 0, 1);
   video.volume = Math.round(next * 100) / 100;
   video.muted = video.volume === 0;
-  osd(`Ses %${Math.round(video.volume * 100)}`, video.volume);
+  osd(t("volumeLevel", { n: Math.round(video.volume * 100) }), video.volume);
 }
 
 function toggleMute() {
   if (video.muted || video.volume === 0) {
     if (video.volume === 0) video.volume = 0.5;
     video.muted = false;
-    osd(`Ses %${Math.round(video.volume * 100)}`, video.volume);
+    osd(t("volumeLevel", { n: Math.round(video.volume * 100) }), video.volume);
   } else {
     video.muted = true;
-    osd("Ses kapalı", 0);
+    osd(t("muted"), 0);
   }
 }
 
 function setSpeed(rate: number) {
   video.playbackRate = rate;
-  osd(`Hız ${formatRate(rate)}`);
+  osd(t("speed", { rate: formatRate(rate) }));
 }
 
 function stepSpeed(dir: 1 | -1) {
@@ -343,7 +344,7 @@ function stepSpeed(dir: 1 | -1) {
 function toggleLoop() {
   video.loop = !video.loop;
   loopBtn.classList.toggle("is-on", video.loop);
-  osd(video.loop ? "Döngü açık" : "Döngü kapalı");
+  osd(t(video.loop ? "loopOn" : "loopOff"));
 }
 
 async function toggleFullscreen(force?: boolean) {
@@ -376,7 +377,7 @@ async function snapshot() {
     /* tainted canvas */
   }
   if (!blob) {
-    toast("Bu videodan kare alınamadı.", { tone: "error" });
+    toast(t("snapFailed"), { tone: "error" });
     return;
   }
   restartAnimation(shutter);
@@ -393,9 +394,9 @@ async function snapshot() {
     const path = await invoke<string>("save_snapshot", new Uint8Array(await blob.arrayBuffer()), {
       headers: { "x-time": video.currentTime.toFixed(3) },
     });
-    toast("Kare, Resimler › Atak Viewer klasörüne kaydedildi.", {
+    toast(t("snapSaved"), {
       tone: "ok",
-      action: { label: "Göster", run: () => revealItemInDir(path) },
+      action: { label: t("show"), run: () => revealItemInDir(path) },
     });
   } catch (err) {
     toast(String(err), { tone: "error" });
@@ -445,7 +446,8 @@ function renderRecent() {
           <span class="recent__meta"><span class="recent__name"></span><span class="recent__sub"></span></span>
           <span class="recent__dur"></span>
         </button>
-        <button class="recent__remove" title="Listeden kaldır"><svg class="icon"><use href="#i-x"/></svg></button>`;
+        <button class="recent__remove"><svg class="icon"><use href="#i-x"/></svg></button>`;
+      li.querySelector<HTMLElement>(".recent__remove")!.title = t("removeFromList");
       const thumb = li.querySelector<HTMLElement>(".recent__thumb")!;
       if (item.thumb) {
         thumb.style.backgroundImage = `url("${item.thumb}")`;
@@ -515,32 +517,27 @@ function renderSpeed() {
 function renderInfo() {
   const s = state.source;
   if (!s) return;
-  const rows: [string, string][] = [["Ad", s.name]];
-  if (s.file) rows.push(["Klasör", s.file.folder]);
-  if (video.duration) rows.push(["Süre", formatTime(video.duration)]);
+  const rows: [string, string][] = [[t("name"), s.name]];
+  if (s.file) rows.push([t("folder"), s.file.folder]);
+  if (video.duration) rows.push([t("duration"), formatTime(video.duration)]);
   // For ffmpeg playback, describe the original file, not the H.264 being played.
   const width = s.probe?.width ?? video.videoWidth;
   const height = s.probe?.height ?? video.videoHeight;
-  if (s.probe?.codec) rows.push(["Kodek", s.probe.codec]);
+  if (s.probe?.codec) rows.push([t("codec"), s.probe.codec]);
   if (width) {
-    rows.push(["Çözünürlük", `${width} × ${height}`]);
-    rows.push(["En-boy oranı", aspectLabel(width, height)]);
+    rows.push([t("resolution"), `${width} × ${height}`]);
+    rows.push([t("aspect"), aspectLabel(width, height)]);
   }
   if (s.compat) {
     const quality = video.videoHeight ? `, ${video.videoHeight}p` : "";
-    rows.push([
-      "Oynatma",
-      s.live
-        ? `Bu kodek sistemde çözülemiyor; izlerken H.264'e dönüştürülüyor${quality}`
-        : `Bu kodek sistemde çözülemiyor; hazır H.264 kopya oynatılıyor${quality}`,
-    ]);
+    rows.push([t("playback"), t(s.live ? "playbackLive" : "playbackCached", { quality })]);
   }
-  rows.push(["Boyut", formatBytes(s.size)]);
+  rows.push([t("size"), formatBytes(s.size)]);
   if (video.duration && s.size) {
     const mbps = (s.size * 8) / video.duration / 1e6;
-    rows.push(["Ortalama bit hızı", `${mbps.toLocaleString("tr-TR", { maximumFractionDigits: 1 })} Mbit/sn`]);
+    rows.push([t("bitrate"), `${mbps.toLocaleString(locale, { maximumFractionDigits: 1 })} ${t("mbps")}`]);
   }
-  if (s.modified) rows.push(["Değiştirilme", formatDate(s.modified)]);
+  if (s.modified) rows.push([t("modified"), formatDate(s.modified)]);
 
   infoList.replaceChildren(
     ...rows.map(([label, value]) => {
@@ -578,17 +575,15 @@ function showError() {
     playThroughFfmpeg();
     return;
   }
-  const hevcHint = navigator.userAgent.includes("Windows")
-    ? " iPhone ile çekilen (HEVC) videolar için Microsoft Store'dan “HEVC Video Uzantıları”nı kurup tekrar deneyin."
-    : "";
+  const hevcHint = navigator.userAgent.includes("Windows") ? t("hevcHint") : "";
   showErrorCard(
     damaged
-      ? "Dosya bozuk görünüyor ya da geçerli bir video dosyası değil."
+      ? t("damaged")
       : unsupported
-        ? `Bu dosyanın video biçimi (kodek) bu sistemde açılamıyor.${hevcHint}`
+        ? t("unsupported") + hevcHint
         : err?.code === MediaError.MEDIA_ERR_NETWORK
-          ? "Dosya okunurken bir sorun oluştu. Dosyanın taşınmadığından veya silinmediğinden emin olun."
-          : "Video yüklenirken beklenmeyen bir hata oluştu.",
+          ? t("readError")
+          : t("unexpected"),
     err?.message ?? "",
   );
 }
@@ -776,7 +771,7 @@ video.addEventListener("loadedmetadata", () => {
     return;
   }
   app.classList.toggle("is-audio-only", audioOnly);
-  if (audioOnly) toast("Görüntü çözülemedi, yalnızca ses oynatılıyor.", { tone: "error", ms: 7000 });
+  if (audioOnly) toast(t("audioOnlyToast"), { tone: "error", ms: 7000 });
 
   const scale = Math.min(176 / (video.videoWidth || 16), 99 / (video.videoHeight || 9));
   preview.style.width = `${Math.round((video.videoWidth || 16) * scale)}px`;
@@ -786,8 +781,8 @@ video.addEventListener("loadedmetadata", () => {
     const at = state.resumeAt;
     state.resumeAt = 0;
     video.currentTime = at;
-    toast(`Kaldığınız yerden devam ediliyor: ${formatTime(at)}`, {
-      action: { label: "Baştan başla", run: () => seekTo(0) },
+    toast(t("resumed", { time: formatTime(at) }), {
+      action: { label: t("startOver"), run: () => seekTo(0) },
       ms: 6000,
     });
   }
@@ -894,7 +889,7 @@ on("reveal-btn", () => {
 });
 on("time-dur", () => {
   state.showRemaining = !state.showRemaining;
-  timeDur.title = state.showRemaining ? "Toplam süreyi göster" : "Kalan süreyi göster";
+  timeDur.title = t(state.showRemaining ? "showTotal" : "showRemaining");
   renderTime();
 });
 
@@ -914,8 +909,8 @@ volume.addEventListener("input", () => {
 });
 
 speedMenu.innerHTML =
-  `<div class="menu__title">Oynatma hızı</div>` +
-  SPEEDS.map((s) => `<button class="menu__item" data-rate="${s}">${s === 1 ? "Normal" : formatRate(s)}</button>`).join("");
+  `<div class="menu__title">${t("playbackSpeed")}</div>` +
+  SPEEDS.map((s) => `<button class="menu__item" data-rate="${s}">${s === 1 ? t("normalSpeed") : formatRate(s)}</button>`).join("");
 speedMenu.addEventListener("click", (e) => {
   const item = (e.target as Element).closest<HTMLElement>(".menu__item");
   if (!item) return;
@@ -1001,6 +996,10 @@ window.addEventListener("keydown", (e) => {
 });
 
 /* ---------- Drag & drop, window, startup ---------- */
+
+translatePage();
+// Error messages from the backend follow the UI language.
+if (isTauri) invoke("set_language", { lang });
 
 if (isTauri) {
   getCurrentWebview().onDragDropEvent(({ payload }) => {

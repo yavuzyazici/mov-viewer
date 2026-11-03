@@ -3,7 +3,10 @@ mod stream;
 use std::{
     fs,
     path::{Path, PathBuf},
-    sync::Mutex,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex,
+    },
     time::UNIX_EPOCH,
 };
 
@@ -14,6 +17,19 @@ use tauri::{
 };
 
 const VIDEO_EXTS: &[&str] = &["mov", "mp4", "m4v", "webm"];
+
+/// Set by the page at startup (`set_language`); Turkish until then.
+static ENGLISH: AtomicBool = AtomicBool::new(false);
+
+/// A user-facing message in the UI's language.
+pub(crate) fn msg(tr: &str, en: &str) -> String {
+    if ENGLISH.load(Ordering::Relaxed) { en } else { tr }.to_string()
+}
+
+#[tauri::command]
+fn set_language(lang: String) {
+    ENGLISH.store(lang != "tr", Ordering::Relaxed);
+}
 
 #[derive(Default)]
 struct AppState {
@@ -49,13 +65,14 @@ fn file_from_args(args: &[String]) -> Option<String> {
 /// Validates the file, lets the webview stream it through the asset protocol and returns its details.
 #[tauri::command]
 fn open_video(app: AppHandle, state: State<AppState>, path: String) -> Result<VideoFile, String> {
-    let path = std::path::absolute(&path).map_err(|e| format!("Geçersiz yol: {e}"))?;
-    let meta = fs::metadata(&path).map_err(|e| format!("Dosya açılamadı: {e}"))?;
+    let path = std::path::absolute(&path).map_err(|e| format!("{}: {e}", msg("Geçersiz yol", "Invalid path")))?;
+    let meta = fs::metadata(&path)
+        .map_err(|e| format!("{}: {e}", msg("Dosya açılamadı", "Couldn't open the file")))?;
     if !meta.is_file() {
-        return Err("Seçilen öğe bir dosya değil.".into());
+        return Err(msg("Seçilen öğe bir dosya değil.", "The selected item isn't a file."));
     }
     let (Some(folder), Some(name)) = (path.parent(), path.file_name()) else {
-        return Err("Geçersiz dosya yolu.".into());
+        return Err(msg("Geçersiz dosya yolu.", "Invalid file path."));
     };
     // Rebuild the path the same way read_dir does so the UI can find it among the siblings.
     let path = folder.join(name);
@@ -102,7 +119,7 @@ fn take_startup_file(state: State<AppState>) -> Option<String> {
 #[tauri::command]
 fn save_snapshot(app: AppHandle, state: State<AppState>, request: Request<'_>) -> Result<String, String> {
     let InvokeBody::Raw(bytes) = request.body() else {
-        return Err("Kare verisi alınamadı.".into());
+        return Err(msg("Kare verisi alınamadı.", "No frame data received."));
     };
     let secs: f64 = request
         .headers()
@@ -124,7 +141,8 @@ fn save_snapshot(app: AppHandle, state: State<AppState>, request: Request<'_>) -
         .picture_dir()
         .map_err(|e| e.to_string())?
         .join("Atak Viewer");
-    fs::create_dir_all(&dir).map_err(|e| format!("Klasör oluşturulamadı: {e}"))?;
+    fs::create_dir_all(&dir)
+        .map_err(|e| format!("{}: {e}", msg("Klasör oluşturulamadı", "Couldn't create the folder")))?;
 
     let total = secs.max(0.0);
     let whole = total as u64;
@@ -136,7 +154,7 @@ fn save_snapshot(app: AppHandle, state: State<AppState>, request: Request<'_>) -
         whole % 60
     );
     let target = dir.join(name);
-    fs::write(&target, bytes).map_err(|e| format!("Kare kaydedilemedi: {e}"))?;
+    fs::write(&target, bytes).map_err(|e| format!("{}: {e}", msg("Kare kaydedilemedi", "Couldn't save the frame")))?;
     Ok(target.to_string_lossy().into_owned())
 }
 
@@ -172,6 +190,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            set_language,
             open_video,
             take_startup_file,
             save_snapshot,
