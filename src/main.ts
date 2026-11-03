@@ -211,7 +211,7 @@ function closeVideo() {
 
 function setTitle(name: string) {
   titleEl.textContent = name;
-  document.title = name ? `${name} — MOV Viewer` : "MOV Viewer";
+  document.title = name ? `${name} — Atak Viewer` : "Atak Viewer";
   if (isTauri) getCurrentWindow().setTitle(document.title).catch(() => {});
 }
 
@@ -393,7 +393,7 @@ async function snapshot() {
     const path = await invoke<string>("save_snapshot", new Uint8Array(await blob.arrayBuffer()), {
       headers: { "x-time": video.currentTime.toFixed(3) },
     });
-    toast("Kare, Resimler › MOV Viewer klasörüne kaydedildi.", {
+    toast("Kare, Resimler › Atak Viewer klasörüne kaydedildi.", {
       tone: "ok",
       action: { label: "Göster", run: () => revealItemInDir(path) },
     });

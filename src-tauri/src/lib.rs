@@ -98,7 +98,7 @@ fn take_startup_file(state: State<AppState>) -> Option<String> {
     state.startup_file.lock().unwrap().take()
 }
 
-/// Saves a PNG frame (raw request body) to Pictures/MOV Viewer and returns its path.
+/// Saves a PNG frame (raw request body) to Pictures/Atak Viewer and returns its path.
 #[tauri::command]
 fn save_snapshot(app: AppHandle, state: State<AppState>, request: Request<'_>) -> Result<String, String> {
     let InvokeBody::Raw(bytes) = request.body() else {
@@ -123,7 +123,7 @@ fn save_snapshot(app: AppHandle, state: State<AppState>, request: Request<'_>) -
         .path()
         .picture_dir()
         .map_err(|e| e.to_string())?
-        .join("MOV Viewer");
+        .join("Atak Viewer");
     fs::create_dir_all(&dir).map_err(|e| format!("Klasör oluşturulamadı: {e}"))?;
 
     let total = secs.max(0.0);

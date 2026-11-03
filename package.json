@@ -1,7 +1,9 @@
 {
-  "name": "mov-viewer",
+  "name": "atak-viewer",
   "private": true,
   "version": "0.1.0",
+  "description": "Atak Viewer: free MOV viewer and player for Windows (HEVC, ProRes, 4:2:2 10-bit camera files)",
+  "repository": "github:yavuzyazici/mov-viewer",
   "type": "module",
   "scripts": {
     "dev": "vite",

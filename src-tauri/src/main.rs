@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    mov_viewer_lib::run()
+    atak_viewer_lib::run()
 }

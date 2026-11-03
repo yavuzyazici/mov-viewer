@@ -1,12 +1,12 @@
 [package]
-name = "mov-viewer"
+name = "atak-viewer"
 version = "0.1.0"
-description = "MOV video oynatıcı"
+description = "Atak Viewer: MOV video oynatıcı"
 authors = ["Yavuz Selim YAZICI"]
 edition = "2021"
 
 [lib]
-name = "mov_viewer_lib"
+name = "atak_viewer_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
