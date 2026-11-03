@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { aspectLabel, formatBytes, formatDate, formatRate, formatTime, relativeTime } from "./format";
 import { LiveStream, type ProbeInfo } from "./live";
 import { loadPrefs, recent, savePrefs } from "./store";
@@ -899,6 +899,14 @@ on("time-dur", () => {
 });
 
 helpEl.addEventListener("click", (e) => e.target === helpEl && toggleHelp(false));
+
+// Following the link inside the app would replace the app itself; open it in the default browser.
+$<HTMLAnchorElement>("sponsor").addEventListener("click", (e) => {
+  e.preventDefault();
+  const url = (e.currentTarget as HTMLAnchorElement).href;
+  if (isTauri) openUrl(url).catch((err) => toast(String(err), { tone: "error" }));
+  else window.open(url, "_blank", "noopener");
+});
 
 volume.addEventListener("input", () => {
   video.volume = Number(volume.value);

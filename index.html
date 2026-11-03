@@ -99,6 +99,10 @@
         <path d="m7.5 10 4.5 4.5 4.5-4.5" />
         <path d="M4 15.5v2A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5v-2" />
       </symbol>
+      <symbol id="i-external" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 4h6v6M20 4l-9 9" />
+        <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
+      </symbol>
       <symbol id="i-win-min" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1">
         <path d="M0 5.5h10" />
       </symbol>
@@ -163,10 +167,18 @@
               <ul class="recent__list" id="recent-list"></ul>
             </div>
           </div>
-          <button class="empty__hint" id="help-btn">
-            <svg class="icon"><use href="#i-keyboard" /></svg>
-            Klavye kısayolları <kbd>?</kbd>
-          </button>
+          <footer class="empty__footer">
+            <button class="empty__hint" id="help-btn">
+              <svg class="icon"><use href="#i-keyboard" /></svg>
+              Klavye kısayolları <kbd>?</kbd>
+            </button>
+            <span class="empty__sep" aria-hidden="true"></span>
+            <a class="sponsor" id="sponsor" href="https://www.atakdomain.com/" title="atakdomain.com'u tarayıcıda aç">
+              <span class="sponsor__label">Sponsor</span>
+              <span class="sponsor__name">Atak Domain</span>
+              <svg class="icon"><use href="#i-external" /></svg>
+            </a>
+          </footer>
         </section>
 
         <div class="flash" id="flash"><svg class="icon"><use id="flash-icon" href="#i-play" /></svg></div>

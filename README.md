@@ -11,6 +11,10 @@
 - Kareyi PNG olarak kaydetme (`Resimler/MOV Viewer`)
 - Kısayolların tamamı için uygulamada `?` tuşu
 
+## Sponsor
+
+MOV Viewer, [Atak Domain](https://www.atakdomain.com/) sponsorluğunda geliştirilmektedir.
+
 ## Geliştirme
 
 ```bash
