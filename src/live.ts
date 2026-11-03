@@ -74,6 +74,7 @@ export class LiveStream {
     this.firstJob = invoke<number>("start_stream", { path, start });
     this.media.addEventListener("sourceopen", () => this.open(info, start), { once: true });
     video.addEventListener("seeking", this.onSeeking);
+    video.addEventListener("waiting", this.onWaiting);
   }
 
   destroy() {
@@ -81,6 +82,7 @@ export class LiveStream {
     this.generation++;
     clearTimeout(this.seekTimer);
     this.video.removeEventListener("seeking", this.onSeeking);
+    this.video.removeEventListener("waiting", this.onWaiting);
     // Name the job: a newer stream may already have started its own.
     if (this.job) invoke("stop_stream", { job: this.job });
     else this.firstJob.then((job) => invoke("stop_stream", { job })).catch(() => {});
@@ -151,6 +153,8 @@ export class LiveStream {
           this.offset += chunk.byteLength;
         }
         await this.checkStatus();
+        // Everything read but not ended (a hole is still being refilled): don't spin.
+        if (chunk.byteLength === 0 && !this.ended) await sleep(250);
       } catch (err) {
         // Errors from a read that a seek has made obsolete (e.g. "stale" job) are expected.
         if (generation === this.generation) {
@@ -194,12 +198,24 @@ export class LiveStream {
     if (generation !== this.generation || !this.alive) return;
     this.converted = Math.min(status.converted, this.info?.duration ?? this.video.duration);
     this.callbacks.onProgress();
-    if (status.done && this.offset >= status.written && !this.ended) {
+    if (status.done && this.offset >= status.written && !this.ended && this.reachesEnd()) {
       const sb = this.buffer!;
       if (sb.updating) await updated(sb);
       if (this.media.readyState === "open") this.media.endOfStream();
       this.ended = true;
     }
+  }
+
+  /**
+   * Whether the buffer runs without a hole from the playhead to the end. Ending the stream with a
+   * hole in between makes the browser treat the hole as the end and jump there.
+   */
+  private reachesEnd() {
+    const b = this.buffer!.buffered;
+    const t = this.video.currentTime;
+    // The playhead's range must be the last one: nothing beyond a hole.
+    const last = b.length - 1;
+    return last >= 0 && b.start(last) <= t + 0.5;
   }
 
   private bufferedAhead() {
@@ -218,6 +234,15 @@ export class LiveStream {
     }
     return false;
   }
+
+  /**
+   * A stall on a hole in data that already arrived is handled like a seek there, so the missing
+   * part is read again. Stalls while the first data is still on its way are left alone.
+   */
+  private onWaiting = () => {
+    if (this.video.readyState < HTMLMediaElement.HAVE_METADATA || !this.buffer?.buffered.length) return;
+    this.onSeeking();
+  };
 
   // Scrubbing fires many seeks; act on where it settles.
   private onSeeking = () => {
