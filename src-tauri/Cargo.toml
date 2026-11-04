@@ -1,6 +1,6 @@
 [package]
 name = "atak-viewer"
-version = "0.2.0"
+version = "0.2.1"
 description = "Atak Viewer: MOV video oynatıcı"
 authors = ["Yavuz Selim YAZICI"]
 license = "MIT"

@@ -1,7 +1,7 @@
 {
   "name": "atak-viewer",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Atak Viewer: free MOV viewer and player for Windows and Linux (HEVC, ProRes, 4:2:2 10-bit camera files)",
   "repository": "github:yavuzyazici/mov-viewer",
   "license": "MIT",
